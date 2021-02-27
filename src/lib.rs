@@ -20,8 +20,8 @@ pub struct NetworkStack<'a, 'b, DeviceT>
 where
     DeviceT: for<'c> smoltcp::phy::Device<'c>,
 {
-    network_interface: RefCell<smoltcp::iface::EthernetInterface<'b, DeviceT>>,
-    sockets: RefCell<smoltcp::socket::SocketSet<'a>>,
+    pub network_interface: RefCell<smoltcp::iface::EthernetInterface<'b, DeviceT>>,
+    pub sockets: RefCell<smoltcp::socket::SocketSet<'a>>,
     next_port: RefCell<u16>,
     unused_handles: RefCell<Vec<smoltcp::socket::SocketHandle, consts::U16>>,
 }
