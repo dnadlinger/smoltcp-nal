@@ -26,6 +26,8 @@ where
     unused_handles: RefCell<Vec<smoltcp::socket::SocketHandle, consts::U16>>,
 }
 
+const EPHEMERAL_BASE: u16 = 49152;
+
 impl<'a, 'b, DeviceT> NetworkStack<'a, 'b, DeviceT>
 where
     DeviceT: for<'c> smoltcp::phy::Device<'c>,
@@ -35,22 +37,29 @@ where
     /// # Args
     /// * `stack` - The ethernet interface to construct the network stack from.
     /// * `sockets` - The socket set to contain any socket state for the stack.
+    /// * `initial_port_offset` - An offset into the ephemeral port range from which to start
+    ///    sequentially assigning ports. Can be set to a constant value (e.g. 0) for
+    ///    detererministic port assignments, but a random number is preferred to avoid port reuse
+    ///    after reset.
     ///
     /// # Returns
     /// A embedded-nal-compatible network stack.
     pub fn new(
         stack: smoltcp::iface::EthernetInterface<'b, DeviceT>,
         sockets: smoltcp::socket::SocketSet<'a>,
+        initial_port_offset: u16,
     ) -> Self {
         let mut unused_handles: Vec<smoltcp::socket::SocketHandle, consts::U16> = Vec::new();
         for socket in sockets.iter() {
             unused_handles.push(socket.handle()).unwrap();
         }
 
+        let next_port =
+            EPHEMERAL_BASE + initial_port_offset % (u16::MAX - EPHEMERAL_BASE);
         NetworkStack {
             network_interface: RefCell::new(stack),
             sockets: RefCell::new(sockets),
-            next_port: RefCell::new(49152),
+            next_port: RefCell::new(next_port),
             unused_handles: RefCell::new(unused_handles),
         }
     }
@@ -79,7 +88,7 @@ where
         let current_port = self.next_port.borrow().clone();
 
         let (next, wrap) = self.next_port.borrow().overflowing_add(1);
-        *self.next_port.borrow_mut() = if wrap { 49152 } else { next };
+        *self.next_port.borrow_mut() = if wrap { EPHEMERAL_BASE } else { next };
 
         return current_port;
     }
